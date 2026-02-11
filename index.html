@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Firework Ultimate - Music Upload</title>
+    <style>
+        :root {
+            --primary: #ff0055;
+            --accent: #00f2ff;
+            --success: #00ff88;
+            --panel-bg: rgba(18, 18, 18, 0.96);
+        }
+        body {
+            margin: 0; padding: 0; overflow: hidden;
+            background-color: #000;
+            font-family: 'Segoe UI', sans-serif;
+            color: white;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        canvas { display: block; touch-action: none; position: absolute; top: 0; left: 0; }
+
+        #settings-panel {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%) scale(0.95);
+            width: 90%; max-width: 380px;
+            background: var(--panel-bg);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            padding: 20px; border-radius: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            display: none; flex-direction: column; gap: 10px;
+            z-index: 1000; box-shadow: 0 30px 80px rgba(0,0,0,0.8);
+            transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+            opacity: 0;
+        }
+
+        #settings-panel.active { display: flex; transform: translate(-50%, -50%) scale(1); opacity: 1; }
+
+        .section-title { font-size: 10px; opacity: 0.6; text-align: center; letter-spacing: 1.5px; text-transform: uppercase; margin-top: 5px; font-weight: 700; }
+
+        input[type="text"] {
+            width: 100%; padding: 12px; border-radius: 12px; border: 1px solid #333;
+            background: rgba(255,255,255,0.05); color: white; font-size: 18px; text-align: center; outline: none; box-sizing: border-box;
+            transition: border-color 0.3s;
+        }
+        input[type="text"]:focus { border-color: var(--accent); }
+
+        /* Vùng tải nhạc */
+        .music-upload-area {
+            border: 1px dashed #555; background: rgba(0,0,0,0.3);
+            border-radius: 12px; padding: 10px; text-align: center;
+            cursor: pointer; transition: 0.3s;
+        }
+        .music-upload-area:active { background: rgba(255,255,255,0.1); }
+        .music-icon { font-size: 20px; display: block; margin-bottom: 5px; }
+        .music-label { font-size: 11px; font-weight: bold; color: var(--accent); }
+        .music-filename { font-size: 9px; color: #888; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        .fx-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+
+        .fx-btn {
+            padding: 10px 2px; border-radius: 10px; border: 1px solid #333;
+            background: #1f1f1f; color: #888; cursor: pointer; font-size: 9px; font-weight: 700;
+            transition: all 0.2s; text-align: center;
+        }
+
+        .fx-btn.active { background: white; color: black; border-color: white; transform: translateY(-1px); box-shadow: 0 4px 10px rgba(255,255,255,0.2); }
+
+        #launchBtn {
+            margin-top: 5px; padding: 15px; border-radius: 12px; border: none;
+            background: linear-gradient(45deg, var(--accent), var(--primary));
+            color: white; font-weight: 900; cursor: pointer; text-transform: uppercase;
+            box-shadow: 0 4px 20px rgba(255, 0, 85, 0.3);
+            transition: 0.2s; font-size: 14px;
+        }
+        #launchBtn:active { transform: scale(0.96); opacity: 0.9; }
+
+        .hint {
+            position: absolute; bottom: 30px; width: 100%; text-align: center;
+            font-size: 11px; opacity: 0.4; letter-spacing: 1px; pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="canvas"></canvas>
+
+    <div id="settings-panel">
+        <div class="section-title">Nội dung</div>
+        <input type="text" id="nameInput" value="MUSIC" maxlength="12" spellcheck="false">
+        
+        <div class="section-title">Âm nhạc (Đồng bộ Bass)</div>
+        <div class="music-upload-area" id="uploadTrigger">
+            <span class="music-icon">🎵</span>
+            <div class="music-label">CHẠM ĐỂ TẢI NHẠC MP3</div>
+            <div class="music-filename" id="fileName">Chưa có bài hát nào</div>
+        </div>
+        <input type="file" id="audioInput" accept="audio/*" style="display: none;">
+
+        <div class="section-title">9 Hiệu ứng đặc biệt</div>
+        <div class="fx-grid">
+            <div class="fx-btn active" data-fx="normal">CƠ BẢN</div>
+            <div class="fx-btn" data-fx="diamond">KIM CƯƠNG</div>
+            <div class="fx-btn" data-fx="rainbow">CẦU VỒNG</div>
+            <div class="fx-btn" data-fx="heart">TRÁI TIM</div>
+            <div class="fx-btn" data-fx="gold">MƯA VÀNG</div>
+            <div class="fx-btn" data-fx="matrix">MA TRẬN</div>
+            <div class="fx-btn" data-fx="double">PHÁO KÉP</div>
+            <div class="fx-btn" data-fx="spiral" style="color:#00f2ff">XOẮN ỐC</div>
+            <div class="fx-btn" data-fx="ring" style="color:#ff0055">NHẪN</div>
+        </div>
+
+        <button id="launchBtn">BẮN TRÌNH DIỄN</button>
+    </div>
+
+    <div class="hint">CHẠM 3 NGÓN ĐỂ MỞ MENU</div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
+        const nameInput = document.getElementById('nameInput');
+        const settings = document.getElementById('settings-panel');
+        const launchBtn = document.getElementById('launchBtn');
+        const fxBtns = document.querySelectorAll('.fx-btn');
+        const uploadTrigger = document.getElementById('uploadTrigger');
+        const audioInput = document.getElementById('audioInput');
+        const fileNameDisplay = document.getElementById('fileName');
+        
+        let width, height, fireworks = [], particles = [], currentFX = 'normal';
+        let audioCtx, analyser, dataArray, audioTag, audioSource;
+        let lastInteractionTime = Date.now();
+        let flashOpacity = 0;
+        let lastBassTime = 0;
+
+        const textCanvas = document.createElement('canvas');
+        const textCtx = textCanvas.getContext('2d');
+
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+            textCanvas.width = width;
+            textCanvas.height = height;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // --- HỆ THỐNG ÂM THANH (Audio System) ---
+        
+        // Kích hoạt input file khi bấm vào vùng nhạc
+        uploadTrigger.onclick = () => audioInput.click();
+
+        // Xử lý khi người dùng chọn file
+        audioInput.onchange = (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                fileNameDisplay.innerText = "Đã chọn: " + file.name;
+                fileNameDisplay.style.color = "#00ff88";
+                
+                // Tạo URL cho file nhạc
+                if (audioTag) {
+                    audioTag.pause();
+                    audioTag = null;
+                }
+                audioTag = new Audio(URL.createObjectURL(file));
+                audioTag.crossOrigin = "anonymous";
+            }
+        };
+
+        // Khởi tạo AudioContext an toàn (chỉ chạy khi có tương tác)
+        function initAudio() {
+            try {
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    analyser = audioCtx.createAnalyser();
+                    analyser.fftSize = 128; // Kích thước mẫu để phân tích bass
+                    dataArray = new Uint8Array(analyser.frequencyBinCount);
+                }
+                
+                if (audioTag && !audioSource) {
+                    audioSource = audioCtx.createMediaElementSource(audioTag);
+                    audioSource.connect(analyser);
+                    analyser.connect(audioCtx.destination);
+                }
+
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                
+                if (audioTag && audioTag.paused) {
+                    audioTag.play().catch(e => console.log("Cần tương tác để phát nhạc"));
+                }
+            } catch(e) {
+                console.log(e);
+            }
+        }
+
+        fxBtns.forEach(btn => {
+            btn.onclick = (e) => {
+                e.stopPropagation();
+                fxBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentFX = btn.dataset.fx;
+            };
+        });
+
+        function launch(x, y, fxOverride = null) {
+            const val = nameInput.value.toUpperCase() || "MUSIC";
+            fireworks.push(new Firework(x, y, val, fxOverride || currentFX));
+            lastInteractionTime = Date.now();
+        }
+
+        // Multi-touch & Mouse
+        const handleInput = (x, y) => {
+            if (!settings.classList.contains('active')) {
+                // Không gọi initAudio ở đây để tránh lỗi trên iPhone khi chưa bấm Start
+                launch(x, y);
+            }
+        };
+
+        window.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 3) { 
+                e.preventDefault();
+                settings.classList.toggle('active'); 
+                return; 
+            }
+            if (!settings.classList.contains('active')) {
+                for (let i = 0; i < e.changedTouches.length; i++) {
+                    handleInput(e.changedTouches[i].clientX, e.changedTouches[i].clientY);
+                }
+            }
+        }, { passive: false });
+
+        window.addEventListener('mousedown', (e) => {
+            if (settings.contains(e.target)) return;
+            if (settings.classList.contains('active')) {
+                settings.classList.remove('active');
+            } else {
+                handleInput(e.clientX, e.clientY);
+            }
+        });
+
+        launchBtn.onclick = (e) => {
+            e.stopPropagation();
+            settings.classList.remove('active'); 
+            initAudio(); // Kích hoạt nhạc khi bấm nút này
+            launch(width/2, height*0.35); 
+        };
+
+        class Particle {
+            constructor(x, y, hue, tx, ty, fx) {
+                this.x = x; this.y = y; this.tx = tx; this.ty = ty; this.fx = fx;
+                this.alpha = 1;
+                this.angle = Math.atan2(ty - y, tx - x); 
+                
+                if (fx === 'matrix') {
+                    this.vx = (Math.random() - 0.5) * 2;
+                    this.vy = (Math.random() - 0.5) * 2;
+                } else if (fx === 'spiral') {
+                    this.vx = (Math.random() - 0.5) * 15;
+                    this.vy = (Math.random() - 0.5) * 15;
+                } else {
+                    this.vx = (Math.random() - 0.5) * 12;
+                    this.vy = (Math.random() - 0.5) * 12;
+                }
+
+                this.friction = (fx === 'gold' || fx === 'spiral') ? 0.96 : 0.92;
+                this.gravity = fx === 'gold' ? 0.02 : 0.04;
+                this.decay = (fx === 'gold' || fx === 'ring') ? 0.005 : 0.008;
+                this.hue = fx === 'rainbow' ? Math.random() * 360 : hue;
+                this.color = this.getColor(hue);
+            }
+
+            getColor(hue) {
+                if (this.fx === 'diamond') return `hsl(0, 0%, ${85 + Math.random() * 15}%)`;
+                if (this.fx === 'gold') return `hsl(45, 100%, ${50 + Math.random() * 20}%)`;
+                if (this.fx === 'matrix') return `hsl(120, 100%, 60%)`;
+                if (this.fx === 'ring') return `hsl(${hue + 180}, 100%, 70%)`;
+                return `hsl(${this.hue}, 100%, 65%)`;
+            }
+
+            update() {
+                if (this.fx === 'matrix') {
+                    this.vy += 0.25; 
+                } else if (this.fx === 'spiral') {
+                    const dx = this.tx - this.x;
+                    const dy = this.ty - this.y;
+                    this.vx += dx * 0.01 + Math.cos(this.angle) * 0.5;
+                    this.vy += dy * 0.01 + Math.sin(this.angle) * 0.5;
+                    this.angle += 0.1; 
+                } else {
+                    this.vx += (this.tx - this.x) * 0.04;
+                    this.vy += (this.ty - this.y) * 0.04;
+                }
+                
+                this.vx *= this.friction; this.vy *= this.friction;
+                this.vy += this.gravity;
+                this.x += this.vx; this.y += this.vy;
+                this.alpha -= this.decay;
+                
+                if (this.fx === 'rainbow') { 
+                    this.hue += 10; 
+                    this.color = `hsl(${this.hue}, 100%, 60%)`; 
+                }
+                return this.alpha <= 0;
+            }
+
+            draw() {
+                ctx.save();
+                let a = this.alpha;
+                if (this.fx === 'diamond' && Math.random() > 0.7) a = 1;
+                ctx.globalAlpha = a;
+                ctx.fillStyle = this.color;
+                
+                if (this.fx === 'ring' || this.fx === 'spiral') {
+                    ctx.shadowBlur = 5;
+                    ctx.shadowColor = this.color;
+                }
+                
+                ctx.fillRect(this.x, this.y, 2, 2);
+                ctx.restore();
+            }
+        }
+
+        class Firework {
+            constructor(tx, ty, text, fx) {
+                this.x = Math.random() * width; this.y = height;
+                this.tx = tx; this.ty = ty; this.text = text; this.fx = fx;
+                this.hue = Math.random() * 360;
+                this.speed = 30; this.timer = 0;
+            }
+            update() {
+                this.x += (this.tx - this.x) / this.speed;
+                this.y += (this.ty - this.y) / this.speed;
+                if (++this.timer >= this.speed) { this.explode(); return true; }
+                return false;
+            }
+            draw() {
+                ctx.globalAlpha = 1;
+                ctx.fillStyle = '#fff';
+                ctx.beginPath(); ctx.arc(this.x, this.y, 2.5, 0, Math.PI * 2); ctx.fill();
+            }
+            explode() {
+                // Không tự tạo tiếng nổ (playSound) nữa vì đã dùng nhạc nền
+                if (this.fx === 'flash') flashOpacity = 0.8;
+                
+                this.generateParticles(this.text, this.tx, this.ty);
+
+                if (this.fx === 'heart') {
+                    for(let i=0; i<60; i++) {
+                        const angle = (i / 60) * Math.PI * 2;
+                        const x = 16 * Math.pow(Math.sin(angle), 3);
+                        const y = -(13 * Math.cos(angle) - 5 * Math.cos(2 * angle) - 2 * Math.cos(3 * angle) - Math.cos(4 * angle));
+                        particles.push(new Particle(this.tx, this.ty, 0, this.tx + x * 9, this.ty + y * 9, 'normal'));
+                    }
+                }
+
+                if (this.fx === 'ring') {
+                    for(let i=0; i<80; i++) {
+                        const angle = (i / 80) * Math.PI * 2;
+                        const r = 150; 
+                        particles.push(new Particle(this.tx, this.ty, this.hue, this.tx + Math.cos(angle)*r, this.ty + Math.sin(angle)*r * 0.5, 'ring'));
+                    }
+                }
+
+                if (this.fx === 'double') {
+                    setTimeout(() => {
+                        this.generateParticles(this.text, this.tx, this.ty, true);
+                    }, 400);
+                }
+            }
+
+            generateParticles(text, cx, cy, isSecond = false) {
+                textCtx.clearRect(0,0,width,height);
+                const size = Math.min(width/(text.length*0.8), 150);
+                textCtx.font = `900 ${size}px Arial, sans-serif`;
+                textCtx.textAlign='center'; textCtx.textBaseline='middle';
+                textCtx.fillText(text, cx, cy);
+                const data = textCtx.getImageData(0,0,width,height).data;
+                const step = isSecond ? 4 : 6;
+                for(let y=0; y<height; y+=step) {
+                    for(let x=0; x<width; x+=step) {
+                        if(data[(y*width+x)*4+3] > 128) {
+                            particles.push(new Particle(cx, cy, isSecond ? (this.hue+180)%360 : this.hue, x, y, this.fx));
+                        }
+                    }
+                }
+            }
+        }
+
+        function loop() {
+            ctx.globalAlpha = 1;
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.2)'; 
+            ctx.fillRect(0,0,width,height);
+            
+            if (flashOpacity > 0) {
+                ctx.fillStyle = `rgba(255, 255, 255, ${flashOpacity})`;
+                ctx.fillRect(0,0,width,height);
+                flashOpacity -= 0.05;
+            }
+
+            // LOGIC PHÂN TÍCH NHẠC (Music Sync)
+            if (analyser && audioTag && !audioTag.paused) {
+                analyser.getByteFrequencyData(dataArray);
+                // Lấy giá trị trung bình của các tần số thấp (Bass)
+                let bassSum = 0;
+                for(let i=0; i<5; i++) bassSum += dataArray[i];
+                let avgBass = bassSum / 5;
+
+                // Ngưỡng kích hoạt (Threshold): 210/255
+                if (avgBass > 210 && Date.now() - lastBassTime > 400) {
+                    launch(width * (0.2 + Math.random() * 0.6), height * (0.2 + Math.random() * 0.4));
+                    lastBassTime = Date.now();
+                }
+            } else {
+                // Nếu không có nhạc, tự động bắn ngẫu nhiên
+                if (Date.now() - lastInteractionTime > 5000 && Math.random() < 0.015) {
+                    launch(width * (0.2 + Math.random() * 0.6), height * (0.2 + Math.random() * 0.4));
+                }
+            }
+
+            fireworks = fireworks.filter(f => { f.draw(); return !f.update(); });
+            particles = particles.filter(p => { p.draw(); return !p.update(); });
+            
+            if(particles.length > 2200) particles.splice(0, particles.length - 2200);
+
+            requestAnimationFrame(loop);
+        }
+        loop();
+    </script>
+</body>
+</html>
